@@ -20,12 +20,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-@RequestMapping("/api/v1/files")
+@RequestMapping({"/api/v1/files", "/internal/files"})
 @RequiredArgsConstructor
 public class StorageController {
     private final StorageService storageService;
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Object> uploadFile(
             @RequestParam(name = "file", required = false) MultipartFile file,
             @RequestParam(name = "folder") String folder
@@ -47,7 +47,7 @@ public class StorageController {
         return ResponseEntity.status(HttpStatus.OK).body(response.join());
     }
 
-    @PostMapping("/multiple")
+    @PostMapping(value = "/multiple", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Object> uploadMultipleFiles(
             @RequestParam(name = "files", required = false) MultipartFile[] files,
             @RequestParam(name = "folder") String folder

@@ -2,59 +2,103 @@ package iuh.fit.storageservice.infrastructure.security.filter;
 
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Slf4j
 @Component
-public class JwtFilter implements Filter {
+public class JwtFilter extends OncePerRequestFilter {
+
+    @Value("${app.jwt.secret}")
+    private String gatewaySecret;
 
     @Override
-    public void doFilter(
-            ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain
-    ) throws IOException, ServletException
-    {
-        HttpServletRequest httpRequest = (HttpServletRequest) servletRequest;
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return uri.startsWith("/internal/") || uri.startsWith("/actuator");
+    }
 
-        String email = httpRequest.getHeader("X-User-Email");
-        String userKeycloakId = httpRequest.getHeader("X-User-KeycloakId");
-        String role = httpRequest.getHeader("X-User-Role");
-        String authoritiesRaw = httpRequest.getHeader("X-User-Authorities");
+    @Override
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
+        try {
+            String secret = request.getHeader("X-Gateway-Secret");
+            if (!hasText(secret) || !gatewaySecret.equals(secret)) {
+                response.setStatus(HttpStatus.FORBIDDEN.value());
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("""
+                        {
+                          "statusCode":403,
+                          "message":"Forbidden",
+                          "error":"Phải đi qua API Gateway"
+                        }
+                        """);
+                return;
+            }
 
-        List<SimpleGrantedAuthority> authorities = Collections.emptyList();
+            String userId = request.getHeader("X-User-Id");
+            String username = request.getHeader("X-User-Username");
+            String email = request.getHeader("X-User-Email");
+            String role = request.getHeader("X-User-Roles");
+            String authoritiesRaw = request.getHeader("X-User-Authorities");
 
-        if (authoritiesRaw != null && !authoritiesRaw.isBlank()) {
-            authorities = Arrays.stream(authoritiesRaw.split(","))
-                    .filter(auth -> !auth.isBlank())
-                    .map(SimpleGrantedAuthority::new)
-                    .toList();
+            List<SimpleGrantedAuthority> authorities = Collections.emptyList();
+            if (hasText(authoritiesRaw)) {
+                authorities = Arrays.stream(authoritiesRaw.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isBlank())
+                        .map(SimpleGrantedAuthority::new)
+                        .toList();
+            }
+
+            if (hasText(role)) {
+                String roleName = normalizeRole(role);
+                List<SimpleGrantedAuthority> roleAuthorities = List.of(new SimpleGrantedAuthority(roleName));
+                authorities = authorities.isEmpty()
+                        ? roleAuthorities
+                        : Stream.concat(authorities.stream(), roleAuthorities.stream())
+                        .distinct()
+                        .toList();
+            }
+
+            if (hasText(userId) || hasText(email) || hasText(username)) {
+                String principal = hasText(email) ? email : username;
+
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                principal,
+                                null,
+                                authorities
+                        );
+
+                authentication.setDetails(userId);
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+
+            log.info("User {}, Authorities: {}", username, authorities);
+
+            filterChain.doFilter(request, response);
+        } finally {
+            SecurityContextHolder.clearContext();
         }
-
-        if (hasText(role)) {
-            List<SimpleGrantedAuthority> roleAuthorities = List.of(
-                    new SimpleGrantedAuthority(normalizeRole(role))
-            );
-            authorities = authorities.isEmpty()
-                    ? roleAuthorities
-                    : java.util.stream.Stream
-                    .concat(authorities.stream(), roleAuthorities.stream())
-                    .distinct()
-                    .toList();
-        }
-
-        if (hasText(email) || hasText(userKeycloakId) || !authorities.isEmpty()) {
-            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(email, null, authorities);
-            auth.setDetails(userKeycloakId);
-            SecurityContextHolder.getContext().setAuthentication(auth);
-        } else SecurityContextHolder.clearContext();
     }
 
     private boolean hasText(String value) {
