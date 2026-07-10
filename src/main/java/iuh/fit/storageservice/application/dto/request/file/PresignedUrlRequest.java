@@ -1,8 +1,7 @@
 package iuh.fit.storageservice.application.dto.request.file;
 
-public record UploadRequestCommand(
-        byte[] content,
-        String originalFileName,
+public record PresignedUrlRequest(
+        String fileName,
         String contentType,
         String folder
 ) {}

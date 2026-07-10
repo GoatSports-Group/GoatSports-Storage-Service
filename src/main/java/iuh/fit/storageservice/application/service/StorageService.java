@@ -1,18 +1,20 @@
 package iuh.fit.storageservice.application.service;
 
-import iuh.fit.storageservice.application.dto.request.file.UploadRequestCommand;
+import iuh.fit.storageservice.application.dto.request.file.FileMoveRequest;
+import iuh.fit.storageservice.application.dto.request.file.PresignedUrlRequest;
 import iuh.fit.storageservice.application.dto.response.file.DownloadResponseCommand;
-import iuh.fit.storageservice.application.dto.response.file.FileResponseCommand;
-import iuh.fit.storageservice.application.exception.ServiceException;
+import iuh.fit.storageservice.application.dto.response.file.PresignedUrlResponse;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.List;
 
 public interface StorageService {
-    CompletableFuture<FileResponseCommand> upload(UploadRequestCommand command) throws ServiceException;
+    List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> requests);
 
-    String getFileUrl(String key);
+    List<String> confirmAndMoveFile(List<FileMoveRequest> requests);
 
     DownloadResponseCommand download(String key);
 
     void delete(String key);
+
+    String getFileUrl(String key);
 }
