@@ -11,14 +11,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
-import software.amazon.awssdk.transfer.s3.model.CopyRequest;
-import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import iuh.fit.storageservice.infrastructure.external.kafka.event.FileMoveEvent;
+import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Duration;
 import java.util.List;
@@ -29,10 +28,9 @@ import java.util.UUID;
 @Slf4j
 public class StorageAdapter implements StoragePort {
     private final S3Client s3Client;
-    private final S3AsyncClient s3AsyncClient;
     private final S3Presigner s3Presigner;
-    private final S3TransferManager s3TransferManager;
     private final SecurityContextHelper securityContextHelper;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("${cloudflare.r2.bucket}")
     private String bucketName;
@@ -40,6 +38,8 @@ public class StorageAdapter implements StoragePort {
     private String publicDomain;
     @Value("${cloudflare.r2.expiration-minutes}")
     private Long expirationMinutes;
+    @Value("${spring.kafka.topic.file-move}")
+    private String fileMoveTopic;
 
     @Override
     public List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> requests) {
@@ -83,33 +83,19 @@ public class StorageAdapter implements StoragePort {
             return List.of();
         }
 
-        return requests.stream()
-            .map(
-                request -> {
-                    String destinationKey = request.tempKey().replace("temp/", "");
-
-                    // Thực hiện lệnh Copy nội bộ trên S3 (không tốn băng thông server)
-                    CopyRequest copyRequest = CopyRequest.builder()
-                        .copyObjectRequest(
-                            CopyObjectRequest.builder()
-                                .sourceBucket(bucketName)
-                                .sourceKey(request.tempKey())
-                                .destinationBucket(bucketName)
-                                .destinationKey(destinationKey)
-                                .build())
-                        .build();
-
-                    // Nhờ Virtual Threads nên sẽ không block hệ thống
-                    s3TransferManager.copy(copyRequest).completionFuture().join();
-
-                    // Xóa file cũ ở folder temp sau khi đã copy thành công
-                    delete(request.tempKey());
-
-                    log.info("File confirmed and moved to: {}", destinationKey);
-                    return destinationKey;
-                }
-            )
+        List<String> destinationKeys = requests.stream()
+            .map(request -> request.tempKey().replace("temp/", ""))
             .toList();
+
+        // Phát sự kiện di chuyển file lên Kafka và trả về ngay lập tức
+        FileMoveEvent event = FileMoveEvent.builder()
+            .requests(requests)
+            .build();
+
+        kafkaTemplate.send(fileMoveTopic, event);
+        log.info("Published FileMoveEvent to topic {} for {} files", fileMoveTopic, requests.size());
+
+        return destinationKeys;
     }
 
     @Override
@@ -132,7 +118,7 @@ public class StorageAdapter implements StoragePort {
                     .key(key)
                     .build();
 
-            s3AsyncClient.deleteObject(request);
+            s3Client.deleteObject(request);
         } catch (Exception e) {
             throw new RuntimeException("Failed to delete file with key: " + key, e);
         }
