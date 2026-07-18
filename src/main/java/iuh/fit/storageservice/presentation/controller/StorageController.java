@@ -2,7 +2,6 @@ package iuh.fit.storageservice.presentation.controller;
 
 import iuh.fit.storageservice.application.dto.request.file.PresignedUrlRequest;
 import iuh.fit.storageservice.application.dto.response.file.DownloadResponseCommand;
-import iuh.fit.storageservice.application.dto.response.file.PresignedUrlResponse;
 import iuh.fit.storageservice.application.exception.ServiceException;
 import iuh.fit.storageservice.application.service.StorageService;
 import lombok.RequiredArgsConstructor;
@@ -12,18 +11,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/files")
 @RequiredArgsConstructor
 public class StorageController {
     private final StorageService storageService;
-
-    @PostMapping("/presigned-url")
-    public ResponseEntity<List<PresignedUrlResponse>> getPresignedUrl(@RequestBody List<PresignedUrlRequest> requests) {
-        return ResponseEntity.status(HttpStatus.OK).body(storageService.generatePresignedUrl(requests));
-    }
 
     @GetMapping("/download")
     public ResponseEntity<InputStreamResource> downloadFile(@RequestParam("key") String key) throws ServiceException {

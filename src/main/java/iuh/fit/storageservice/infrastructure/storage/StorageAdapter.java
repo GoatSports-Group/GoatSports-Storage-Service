@@ -78,24 +78,26 @@ public class StorageAdapter implements StoragePort {
     }
 
     @Override
-    public List<String> confirmAndMoveFile(List<FileMoveRequest> requests) {
+    public List<String> confirmFile(List<FileMoveRequest> requests) {
         if (requests == null || requests.isEmpty()) {
             return List.of();
         }
 
-        List<String> destinationKeys = requests.stream()
+        return requests.stream()
             .map(request -> request.tempKey().replace("temp/", ""))
             .toList();
+    }
 
+    @Override
+    public void moveFile(List<FileMoveRequest> requests, Long processInstanceKey) {
         // Phát sự kiện di chuyển file lên Kafka và trả về ngay lập tức
         FileMoveEvent event = FileMoveEvent.builder()
             .requests(requests)
+            .processInstanceKey(processInstanceKey)
             .build();
 
         kafkaTemplate.send(fileMoveTopic, event);
-        log.info("Published FileMoveEvent to topic {} for {} files", fileMoveTopic, requests.size());
-
-        return destinationKeys;
+        log.info("Published FileMoveEvent to topic {} for process {} with {} files", fileMoveTopic, processInstanceKey, requests.size());
     }
 
     @Override

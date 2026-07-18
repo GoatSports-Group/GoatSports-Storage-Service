@@ -22,8 +22,13 @@ public class StorageDecorator implements StorageService {
     }
 
     @Override
-    public List<String> confirmAndMoveFile(List<FileMoveRequest> requests) {
-        return storageServiceImpl.confirmAndMoveFile(requests);
+    public List<String> confirmFile(List<FileMoveRequest> requests) {
+        return storageServiceImpl.confirmFile(requests);
+    }
+
+    @Override
+    public void moveFile(List<FileMoveRequest> requests, Long processInstanceKey) {
+        storageServiceImpl.moveFile(requests, processInstanceKey);
     }
 
     @Override

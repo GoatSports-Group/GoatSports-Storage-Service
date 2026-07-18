@@ -10,13 +10,23 @@ import org.springframework.kafka.config.TopicBuilder;
 public class KafkaConfig {
 
     @Value("${spring.kafka.topic.file-move}")
-    private String topic;
+    private String  fileMoveTopic;
+    @Value("${spring.kafka.topic.file-move-completed}")
+    private String fileMoveCompletedTopic;
 
     @Bean
     public NewTopic fileMoveTopic() {
-        return TopicBuilder.name(topic)
+        return TopicBuilder.name(fileMoveTopic)
                 .partitions(3)
-                .replicas(2)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic fileMoveCompletedTopic() {
+        return TopicBuilder.name(fileMoveCompletedTopic)
+                .partitions(3)
+                .replicas(1)
                 .build();
     }
 }

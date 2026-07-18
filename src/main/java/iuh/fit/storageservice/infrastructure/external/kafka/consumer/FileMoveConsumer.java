@@ -9,6 +9,7 @@ import org.springframework.kafka.annotation.BackOff;
 import org.springframework.kafka.annotation.DltHandler;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
@@ -26,9 +27,12 @@ public class FileMoveConsumer {
 
     private final S3TransferManager s3TransferManager;
     private final StoragePort storagePort;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("${cloudflare.r2.bucket}")
     private String bucketName;
+    @Value("${spring.kafka.topic.file-move-completed}")
+    private String fileMoveCompletedTopic;
 
     @RetryableTopic(
             backOff = @BackOff(delay = 2000, multiplier = 2.0)
@@ -39,6 +43,7 @@ public class FileMoveConsumer {
     )
     public void consume(FileMoveEvent event) {
         log.info("Received FileMoveEvent from Kafka containing {} files", event.getRequests().size());
+        log.info("Starting move files for process: {}", event.getProcessInstanceKey());
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             event.getRequests().forEach(request -> executor.submit(() -> {
@@ -62,6 +67,10 @@ public class FileMoveConsumer {
 
                 log.info("Successfully moved file to: {}", destinationKey);
             }));
+
+            kafkaTemplate.send(fileMoveCompletedTopic, event.getProcessInstanceKey());
+            log.info("Published FileMoveCompletedEvent for process: {}", event.getProcessInstanceKey());
+
         } catch (Exception e) {
             log.error("Error executing parallel file move inside Kafka Consumer", e);
             throw e;

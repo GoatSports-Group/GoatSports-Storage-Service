@@ -23,8 +23,13 @@ public class StorageServiceImpl implements StorageService {
     }
 
     @Override
-    public List<String> confirmAndMoveFile(List<FileMoveRequest> requests) {
-        return storagePort.confirmAndMoveFile(requests);
+    public List<String> confirmFile(List<FileMoveRequest> requests) {
+        return storagePort.confirmFile(requests);
+    }
+
+    @Override
+    public void moveFile(List<FileMoveRequest> requests, Long processInstanceKey) {
+        storagePort.moveFile(requests, processInstanceKey);
     }
 
     @Override

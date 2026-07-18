@@ -10,7 +10,9 @@ import java.util.List;
 public interface StoragePort {
     List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> requests);
 
-    List<String> confirmAndMoveFile(List<FileMoveRequest> requests);
+    List<String> confirmFile(List<FileMoveRequest> requests);
+
+    void moveFile(List<FileMoveRequest> requests, Long processInstanceKey);
 
     DownloadResponseCommand download(String key);
 
