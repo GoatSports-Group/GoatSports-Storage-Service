@@ -18,8 +18,8 @@ public class StorageServiceImpl implements StorageService {
     }
 
     @Override
-    public List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> requests) {
-        return storagePort.generatePresignedUrl(requests);
+    public List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> requests, String userId) {
+        return storagePort.generatePresignedUrl(requests, userId);
     }
 
     @Override

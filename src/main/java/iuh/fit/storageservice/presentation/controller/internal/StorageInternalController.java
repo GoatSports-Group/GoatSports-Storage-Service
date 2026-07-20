@@ -8,10 +8,7 @@ import iuh.fit.storageservice.application.service.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -22,8 +19,11 @@ public class StorageInternalController {
     private final StorageService storageService;
 
     @PostMapping("/presigned-url")
-    public ResponseEntity<List<PresignedUrlResponse>> getPresignedUrl(@RequestBody List<PresignedUrlRequest> requests) {
-        return ResponseEntity.status(HttpStatus.OK).body(storageService.generatePresignedUrl(requests));
+    public ResponseEntity<List<PresignedUrlResponse>> getPresignedUrl(
+            @RequestBody List<PresignedUrlRequest> requests,
+            @RequestParam String userId
+    ) {
+        return ResponseEntity.status(HttpStatus.OK).body(storageService.generatePresignedUrl(requests, userId));
     }
 
     @PostMapping("/confirm")

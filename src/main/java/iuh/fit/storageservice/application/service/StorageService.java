@@ -8,7 +8,7 @@ import iuh.fit.storageservice.application.dto.response.file.PresignedUrlResponse
 import java.util.List;
 
 public interface StorageService {
-    List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> requests);
+    List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> requests, String userId);
 
     List<String> confirmFile(List<FileMoveRequest> requests);
 

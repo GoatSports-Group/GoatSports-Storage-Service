@@ -42,12 +42,10 @@ public class StorageAdapter implements StoragePort {
     private String fileMoveTopic;
 
     @Override
-    public List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> requests) {
+    public List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> requests, String userId) {
         if (requests == null || requests.isEmpty() || requests.size() > 10) {
             return List.of();
         }
-
-        String userId = securityContextHelper.getCurrentUserId().orElse("anonymous");
 
         return requests.stream()
             .map(request -> {

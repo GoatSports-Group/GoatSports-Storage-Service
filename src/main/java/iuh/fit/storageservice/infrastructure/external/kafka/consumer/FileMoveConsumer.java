@@ -1,6 +1,7 @@
 package iuh.fit.storageservice.infrastructure.external.kafka.consumer;
 
 import iuh.fit.storageservice.application.port.StoragePort;
+import iuh.fit.storageservice.infrastructure.external.kafka.event.FileMoveCompletedEvent;
 import iuh.fit.storageservice.infrastructure.external.kafka.event.FileMoveEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -68,7 +69,7 @@ public class FileMoveConsumer {
                 log.info("Successfully moved file to: {}", destinationKey);
             }));
 
-            kafkaTemplate.send(fileMoveCompletedTopic, event.getProcessInstanceKey());
+            kafkaTemplate.send(fileMoveCompletedTopic, new FileMoveCompletedEvent(event.getProcessInstanceKey()));
             log.info("Published FileMoveCompletedEvent for process: {}", event.getProcessInstanceKey());
 
         } catch (Exception e) {

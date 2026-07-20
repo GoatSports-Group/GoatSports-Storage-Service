@@ -17,8 +17,8 @@ public class StorageDecorator implements StorageService {
     private final StorageServiceImpl storageServiceImpl;
 
     @Override
-    public List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> request) {
-        return storageServiceImpl.generatePresignedUrl(request);
+    public List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> request, String userId) {
+        return storageServiceImpl.generatePresignedUrl(request, userId);
     }
 
     @Override
