@@ -2,8 +2,10 @@ package iuh.fit.storageservice.presentation.controller;
 
 import iuh.fit.storageservice.application.dto.request.file.PresignedUrlRequest;
 import iuh.fit.storageservice.application.dto.response.file.DownloadResponseCommand;
+import iuh.fit.storageservice.application.dto.response.file.PresignedUrlResponse;
 import iuh.fit.storageservice.application.exception.ServiceException;
 import iuh.fit.storageservice.application.service.StorageService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -50,5 +52,13 @@ public class StorageController {
         String response = storageService.getFileUrl(key);
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    @PostMapping("/presigned-url")
+    public ResponseEntity<List<PresignedUrlResponse>> getPresignedUrl(
+            @RequestBody List<PresignedUrlRequest> requests,
+            @RequestHeader("X-User-Id") String userId
+    ) {
+        return ResponseEntity.status(HttpStatus.OK).body(storageService.generatePresignedUrl(requests, userId));
     }
 }
