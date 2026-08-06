@@ -1,5 +1,6 @@
 package iuh.fit.storageservice.presentation.controller.internal;
 
+import iuh.fit.shared.annotation.AuditLog;
 import iuh.fit.storageservice.application.dto.request.file.FileMoveRequest;
 import iuh.fit.storageservice.application.dto.request.file.MoveFileRequest;
 import iuh.fit.storageservice.application.dto.request.file.PresignedUrlRequest;
@@ -20,6 +21,7 @@ public class StorageInternalController {
     private final StorageService storageService;
 
     @PostMapping("/presigned-url")
+    @AuditLog(action = "GET_PRESIGNED", description = "Lấy đường dẫn lưu tài liệu tạm thời")
     public ResponseEntity<List<PresignedUrlResponse>> getPresignedUrl(
             @RequestBody List<PresignedUrlRequest> requests,
             @RequestParam String userId
@@ -28,11 +30,13 @@ public class StorageInternalController {
     }
 
     @PostMapping("/confirm")
+    @AuditLog(action = "CONFIRM_FILE", description = "Xác nhận đường dẫn lưu tài liệu")
     public ResponseEntity<List<String>> confirmFile(@RequestBody List<FileMoveRequest> requests) {
         return ResponseEntity.status(HttpStatus.OK).body(storageService.confirmFile(requests));
     }
 
     @PostMapping("/move")
+    @AuditLog(action = "MOVE_FILE", description = "Di chuyển đường dẫn lưu tài liệu")
     public ResponseEntity<Void> moveFile(@RequestBody MoveFileRequest request) {
         storageService.moveFile(request.requests(), request.processInstanceKey());
         return ResponseEntity.ok().build();

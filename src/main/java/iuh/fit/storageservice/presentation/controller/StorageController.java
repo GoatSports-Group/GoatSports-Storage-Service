@@ -1,5 +1,6 @@
 package iuh.fit.storageservice.presentation.controller;
 
+import iuh.fit.shared.annotation.AuditLog;
 import iuh.fit.storageservice.application.dto.request.file.PresignedUrlRequest;
 import iuh.fit.storageservice.application.dto.response.file.DownloadResponseCommand;
 import iuh.fit.storageservice.application.dto.response.file.PresignedUrlResponse;
@@ -21,6 +22,7 @@ public class StorageController {
     private final StorageService storageService;
 
     @GetMapping("/download")
+    @AuditLog(action = "DOWNLOAD_FILE", description = "Tải tài liệu #{#key}")
     public ResponseEntity<InputStreamResource> downloadFile(@RequestParam("key") String key) throws ServiceException {
         if(key == null || key.isEmpty()) {
             throw new ServiceException("Đường dẫn không được để trống");
@@ -35,6 +37,7 @@ public class StorageController {
     }
 
     @DeleteMapping
+    @AuditLog(action = "DELETE_FILE", description = "Xóa tài liệu #{#key}")
     public ResponseEntity<Void> deleteFile(@RequestParam("key") String key) throws ServiceException {
         if(key == null || key.isEmpty()) {
             throw new ServiceException("Đường dẫn không được để trống");
@@ -55,6 +58,7 @@ public class StorageController {
     }
 
     @PostMapping("/presigned-url")
+    @AuditLog(action = "GET_PRESIGNED", description = "Lấy đường dẫn lưu tài liệu tạm thời")
     public ResponseEntity<List<PresignedUrlResponse>> getPresignedUrl(
             @RequestBody List<PresignedUrlRequest> requests,
             @RequestHeader("X-User-Id") String userId
