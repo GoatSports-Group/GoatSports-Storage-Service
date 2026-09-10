@@ -11,5 +11,5 @@ import java.util.List;
 @Builder
 public class FileMoveEvent {
     private List<FileMoveRequest> requests;
-    private Long processInstanceKey;
+    private String correlationId;
 }

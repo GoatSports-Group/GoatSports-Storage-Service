@@ -27,8 +27,8 @@ public class StorageDecorator implements StorageService {
     }
 
     @Override
-    public void moveFile(List<FileMoveRequest> requests, Long processInstanceKey) {
-        storageServiceImpl.moveFile(requests, processInstanceKey);
+    public void moveFile(List<FileMoveRequest> requests, String correlationId) {
+        storageServiceImpl.moveFile(requests, correlationId);
     }
 
     @Override

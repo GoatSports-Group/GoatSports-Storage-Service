@@ -15,11 +15,15 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.CopyRequest;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -27,6 +31,7 @@ import java.util.concurrent.Executors;
 public class FileMoveConsumer {
 
     private final S3TransferManager s3TransferManager;
+    private final S3Client s3Client;
     private final StoragePort storagePort;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -44,11 +49,18 @@ public class FileMoveConsumer {
     )
     public void consume(FileMoveEvent event) {
         log.info("Received FileMoveEvent from Kafka containing {} files", event.getRequests().size());
-        log.info("Starting move files for process: {}", event.getProcessInstanceKey());
+        log.info("Starting move files for correlation: {}", event.getCorrelationId());
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            event.getRequests().forEach(request -> executor.submit(() -> {
-                String destinationKey = request.tempKey().replace("temp/", "");
+            var moves = event.getRequests().stream().map(request -> executor.submit(() -> {
+                if (request.tempKey() == null || !request.tempKey().startsWith("temp/")) {
+                    throw new IllegalArgumentException("Invalid temporary object key");
+                }
+                String destinationKey = request.tempKey().substring("temp/".length());
+                if (!objectExists(request.tempKey()) && objectExists(destinationKey)) {
+                    log.info("File was already moved to: {}", destinationKey);
+                    return;
+                }
 
                 CopyRequest copyRequest = CopyRequest.builder()
                         .copyObjectRequest(
@@ -67,19 +79,43 @@ public class FileMoveConsumer {
                 storagePort.delete(request.tempKey());
 
                 log.info("Successfully moved file to: {}", destinationKey);
-            }));
+            })).toList();
 
-            kafkaTemplate.send(fileMoveCompletedTopic, new FileMoveCompletedEvent(event.getProcessInstanceKey()));
-            log.info("Published FileMoveCompletedEvent for process: {}", event.getProcessInstanceKey());
+            for (var move : moves) {
+                move.get();
+            }
+
+            kafkaTemplate.send(fileMoveCompletedTopic, FileMoveCompletedEvent.builder()
+                    .correlationId(event.getCorrelationId())
+                    .success(true)
+                    .build()).join();
+            log.info("Published FileMoveCompletedEvent for correlation: {}", event.getCorrelationId());
 
         } catch (Exception e) {
             log.error("Error executing parallel file move inside Kafka Consumer", e);
-            throw e;
+            throw new IllegalStateException("Unable to move files for " + event.getCorrelationId(), e);
         }
     }
 
     @DltHandler
     public void handleDlt(FileMoveEvent event, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         log.error("Event failed all retries and reached DLT topic {}. Payload: {}", topic, event);
+        kafkaTemplate.send(fileMoveCompletedTopic, FileMoveCompletedEvent.builder()
+                .correlationId(event.getCorrelationId())
+                .success(false)
+                .failureReason("File move failed after all retries")
+                .build()).join();
+    }
+
+    private boolean objectExists(String key) {
+        try {
+            s3Client.headObject(HeadObjectRequest.builder().bucket(bucketName).key(key).build());
+            return true;
+        } catch (S3Exception exception) {
+            if (exception.statusCode() == 404) {
+                return false;
+            }
+            throw exception;
+        }
     }
 }

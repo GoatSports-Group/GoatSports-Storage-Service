@@ -10,5 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class FileMoveCompletedEvent {
-    private Long processInstanceKey;
+    private String correlationId;
+    private boolean success;
+    private String failureReason;
 }

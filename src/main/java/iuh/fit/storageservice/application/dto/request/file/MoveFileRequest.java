@@ -4,5 +4,5 @@ import java.util.List;
 
 public record MoveFileRequest(
         List<FileMoveRequest> requests,
-        Long processInstanceKey
+        String correlationId
 ) {}

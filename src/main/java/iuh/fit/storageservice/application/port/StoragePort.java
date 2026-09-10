@@ -12,7 +12,7 @@ public interface StoragePort {
 
     List<String> confirmFile(List<FileMoveRequest> requests);
 
-    void moveFile(List<FileMoveRequest> requests, Long processInstanceKey);
+    void moveFile(List<FileMoveRequest> requests, String correlationId);
 
     DownloadResponseCommand download(String key);
 

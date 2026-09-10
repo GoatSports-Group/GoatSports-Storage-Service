@@ -28,8 +28,8 @@ public class StorageServiceImpl implements StorageService {
     }
 
     @Override
-    public void moveFile(List<FileMoveRequest> requests, Long processInstanceKey) {
-        storagePort.moveFile(requests, processInstanceKey);
+    public void moveFile(List<FileMoveRequest> requests, String correlationId) {
+        storagePort.moveFile(requests, correlationId);
     }
 
     @Override

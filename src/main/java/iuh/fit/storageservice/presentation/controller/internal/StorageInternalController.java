@@ -38,8 +38,15 @@ public class StorageInternalController {
     @PostMapping("/move")
     @AuditLog(action = "MOVE_FILE", description = "Di chuyển đường dẫn lưu tài liệu")
     public ResponseEntity<Void> moveFile(@RequestBody MoveFileRequest request) {
-        storageService.moveFile(request.requests(), request.processInstanceKey());
+        storageService.moveFile(request.requests(), request.correlationId());
         return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping
+    @AuditLog(action = "DELETE_FILE", description = "Xóa tài liệu tạm trong quá trình bù trừ Saga")
+    public ResponseEntity<Void> deleteFile(@RequestParam String key) {
+        storageService.delete(key);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping

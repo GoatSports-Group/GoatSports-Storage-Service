@@ -82,20 +82,30 @@ public class StorageAdapter implements StoragePort {
         }
 
         return requests.stream()
-            .map(request -> request.tempKey().replace("temp/", ""))
+            .map(request -> {
+                String tempKey = request.tempKey();
+                if (tempKey == null || !tempKey.startsWith("temp/")) {
+                    throw new IllegalArgumentException("Invalid temporary object key");
+                }
+                s3Client.headObject(HeadObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(tempKey)
+                        .build());
+                return tempKey.substring("temp/".length());
+            })
             .toList();
     }
 
     @Override
-    public void moveFile(List<FileMoveRequest> requests, Long processInstanceKey) {
+    public void moveFile(List<FileMoveRequest> requests, String correlationId) {
         // Phát sự kiện di chuyển file lên Kafka và trả về ngay lập tức
         FileMoveEvent event = FileMoveEvent.builder()
             .requests(requests)
-            .processInstanceKey(processInstanceKey)
+            .correlationId(correlationId)
             .build();
 
-        kafkaTemplate.send(fileMoveTopic, event);
-        log.info("Published FileMoveEvent to topic {} for process {} with {} files", fileMoveTopic, processInstanceKey, requests.size());
+        kafkaTemplate.send(fileMoveTopic, event).join();
+        log.info("Published FileMoveEvent to topic {} for correlation {} with {} files", fileMoveTopic, correlationId, requests.size());
     }
 
     @Override
