@@ -5,29 +5,33 @@ import iuh.fit.storageservice.application.dto.request.file.PresignedUrlRequest;
 import iuh.fit.storageservice.application.dto.response.file.DownloadResponseCommand;
 import iuh.fit.storageservice.application.dto.response.file.PresignedUrlResponse;
 import iuh.fit.storageservice.application.port.StoragePort;
+import iuh.fit.storageservice.infrastructure.external.kafka.event.FileMoveEvent;
 import iuh.fit.storageservice.infrastructure.security.SecurityContextHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
-import iuh.fit.storageservice.infrastructure.external.kafka.event.FileMoveEvent;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class StorageAdapter implements StoragePort {
     private final S3Client s3Client;
+    private final S3AsyncClient s3AsyncClient;
     private final S3Presigner s3Presigner;
     private final SecurityContextHelper securityContextHelper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
@@ -81,19 +85,24 @@ public class StorageAdapter implements StoragePort {
             return List.of();
         }
 
-        return requests.stream()
-            .map(request -> {
-                String tempKey = request.tempKey();
-                if (tempKey == null || !tempKey.startsWith("temp/")) {
-                    throw new IllegalArgumentException("Invalid temporary object key");
-                }
-                s3Client.headObject(HeadObjectRequest.builder()
+        List<String> tempKeys = requests.stream()
+                .map(FileMoveRequest::tempKey)
+                .map(this::validatedTemporaryObjectKey)
+                .toList();
+        List<CompletableFuture<HeadObjectResponse>> confirmations = tempKeys.stream()
+                .map(tempKey -> s3AsyncClient.headObject(HeadObjectRequest.builder()
                         .bucket(bucketName)
                         .key(tempKey)
-                        .build());
-                return tempKey.substring("temp/".length());
-            })
-            .toList();
+                        .build()))
+                .toList();
+
+        long startedAt = System.nanoTime();
+        awaitConfirmations(confirmations);
+        long elapsedMillis = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+        log.info("Confirmed {} temporary objects on R2 in {} ms", tempKeys.size(), elapsedMillis);
+        return tempKeys.stream()
+                .map(tempKey -> tempKey.substring("temp/".length()))
+                .toList();
     }
 
     @Override
@@ -104,7 +113,7 @@ public class StorageAdapter implements StoragePort {
             .correlationId(correlationId)
             .build();
 
-        kafkaTemplate.send(fileMoveTopic, event).join();
+        kafkaTemplate.send(fileMoveTopic, correlationId, event).join();
         log.info("Published FileMoveEvent to topic {} for correlation {} with {} files", fileMoveTopic, correlationId, requests.size());
     }
 
@@ -167,5 +176,23 @@ public class StorageAdapter implements StoragePort {
 
     private boolean isPublic(String key) {
         return key.contains("venues/") || key.contains("avatars/");
+    }
+
+    private String validatedTemporaryObjectKey(String tempKey) {
+        if (tempKey == null || !tempKey.startsWith("temp/")) {
+            throw new IllegalArgumentException("Invalid temporary object key");
+        }
+        return tempKey;
+    }
+
+    private void awaitConfirmations(List<CompletableFuture<HeadObjectResponse>> confirmations) {
+        try {
+            CompletableFuture.allOf(confirmations.toArray(CompletableFuture[]::new)).join();
+        } catch (CompletionException exception) {
+            if (exception.getCause() instanceof RuntimeException cause) {
+                throw cause;
+            }
+            throw exception;
+        }
     }
 }

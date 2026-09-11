@@ -17,13 +17,15 @@ import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.CopyRequest;
 
+import java.util.List;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -52,40 +54,15 @@ public class FileMoveConsumer {
         log.info("Starting move files for correlation: {}", event.getCorrelationId());
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            var moves = event.getRequests().stream().map(request -> executor.submit(() -> {
-                if (request.tempKey() == null || !request.tempKey().startsWith("temp/")) {
-                    throw new IllegalArgumentException("Invalid temporary object key");
-                }
-                String destinationKey = request.tempKey().substring("temp/".length());
-                if (!objectExists(request.tempKey()) && objectExists(destinationKey)) {
-                    log.info("File was already moved to: {}", destinationKey);
-                    return;
-                }
-
-                CopyRequest copyRequest = CopyRequest.builder()
-                        .copyObjectRequest(
-                                CopyObjectRequest.builder()
-                                        .sourceBucket(bucketName)
-                                        .sourceKey(request.tempKey())
-                                        .destinationBucket(bucketName)
-                                        .destinationKey(destinationKey)
-                                        .build())
-                        .build();
-
-                log.info("Processing background copy in consumer for: {} -> {}", request.tempKey(), destinationKey);
-                s3TransferManager.copy(copyRequest).completionFuture().join();
-
-                log.info("Processing background delete in consumer for: {}", request.tempKey());
-                storagePort.delete(request.tempKey());
-
-                log.info("Successfully moved file to: {}", destinationKey);
-            })).toList();
+            var moves = event.getRequests().stream()
+                    .map(request -> executor.submit(() -> moveFile(request.tempKey())))
+                    .toList();
 
             for (var move : moves) {
                 move.get();
             }
 
-            kafkaTemplate.send(fileMoveCompletedTopic, FileMoveCompletedEvent.builder()
+            kafkaTemplate.send(fileMoveCompletedTopic, event.getCorrelationId(), FileMoveCompletedEvent.builder()
                     .correlationId(event.getCorrelationId())
                     .success(true)
                     .build()).join();
@@ -97,10 +74,68 @@ public class FileMoveConsumer {
         }
     }
 
+    private void moveFile(String tempKey) {
+        if (tempKey == null || !tempKey.startsWith("temp/")) {
+            throw new IllegalArgumentException("Invalid temporary object key");
+        }
+        String destinationKey = tempKey.substring("temp/".length());
+
+        if (objectExists(destinationKey)) {
+            deleteTemporaryFile(tempKey);
+            log.info("File was already moved to: {}", destinationKey);
+            return;
+        }
+        if (!objectExists(tempKey)) {
+            throw new IllegalStateException("Temporary file does not exist: " + tempKey);
+        }
+
+        CopyRequest copyRequest = CopyRequest.builder()
+                .copyObjectRequest(
+                        CopyObjectRequest.builder()
+                                .sourceBucket(bucketName)
+                                .sourceKey(tempKey)
+                                .destinationBucket(bucketName)
+                                .destinationKey(destinationKey)
+                                .build())
+                .build();
+
+        try {
+            log.info("Processing background copy in consumer for: {} -> {}", tempKey, destinationKey);
+            s3TransferManager.copy(copyRequest).completionFuture().join();
+        } catch (CompletionException exception) {
+            if (!isMissingSource(exception) || !objectExists(destinationKey)) {
+                throw exception;
+            }
+            log.info("Concurrent file move already created destination: {}", destinationKey);
+        }
+
+        deleteTemporaryFile(tempKey);
+        log.info("Successfully moved file to: {}", destinationKey);
+    }
+
+    private void deleteTemporaryFile(String tempKey) {
+        if (!objectExists(tempKey)) {
+            return;
+        }
+        log.info("Processing background delete in consumer for: {}", tempKey);
+        storagePort.delete(tempKey);
+    }
+
+    private boolean isMissingSource(Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause != null) {
+            if (cause instanceof NoSuchKeyException) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
+    }
+
     @DltHandler
     public void handleDlt(FileMoveEvent event, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         log.error("Event failed all retries and reached DLT topic {}. Payload: {}", topic, event);
-        kafkaTemplate.send(fileMoveCompletedTopic, FileMoveCompletedEvent.builder()
+        kafkaTemplate.send(fileMoveCompletedTopic, event.getCorrelationId(), FileMoveCompletedEvent.builder()
                 .correlationId(event.getCorrelationId())
                 .success(false)
                 .failureReason("File move failed after all retries")
