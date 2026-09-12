@@ -51,7 +51,8 @@ public class StorageAdapter implements StoragePort {
             return List.of();
         }
 
-        return requests.stream()
+        long startedAt = System.nanoTime();
+        List<PresignedUrlResponse> responses = requests.parallelStream()
             .map(request -> {
                 String key = "temp/%s/%s/%s-%s".formatted(
                     request.folder(),
@@ -77,6 +78,9 @@ public class StorageAdapter implements StoragePort {
                 return new PresignedUrlResponse(uploadUrl, key);
             })
             .toList();
+        long elapsedMillis = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+        log.debug("Generated {} R2 presigned upload URLs in {} ms", responses.size(), elapsedMillis);
+        return responses;
     }
 
     @Override

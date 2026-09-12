@@ -21,7 +21,6 @@ public class StorageInternalController {
     private final StorageService storageService;
 
     @PostMapping("/presigned-url")
-    @AuditLog(action = "GET_PRESIGNED", description = "Lấy đường dẫn lưu tài liệu tạm thời")
     public ResponseEntity<List<PresignedUrlResponse>> getPresignedUrl(
             @RequestBody List<PresignedUrlRequest> requests,
             @RequestParam String userId
