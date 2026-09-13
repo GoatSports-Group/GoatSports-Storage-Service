@@ -50,6 +50,10 @@ public class StorageAdapter implements StoragePort {
         if (requests == null || requests.isEmpty() || requests.size() > 10) {
             return List.of();
         }
+        if (requests.stream().anyMatch(request -> request.contentLength() != null
+                && request.contentLength() <= 0)) {
+            return List.of();
+        }
 
         long startedAt = System.nanoTime();
         List<PresignedUrlResponse> responses = requests.parallelStream()
@@ -61,11 +65,14 @@ public class StorageAdapter implements StoragePort {
                     request.fileName()
                 );
 
-                PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                PutObjectRequest.Builder putObjectRequestBuilder = PutObjectRequest.builder()
                     .bucket(bucketName)
                     .key(key)
-                    .contentType(request.contentType())
-                    .build();
+                    .contentType(request.contentType());
+                if (request.contentLength() != null) {
+                    putObjectRequestBuilder.contentLength(request.contentLength());
+                }
+                PutObjectRequest putObjectRequest = putObjectRequestBuilder.build();
 
                 PutObjectPresignRequest presignRequest =
                     PutObjectPresignRequest.builder()
