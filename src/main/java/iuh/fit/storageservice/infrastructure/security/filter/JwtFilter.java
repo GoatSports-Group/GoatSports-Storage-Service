@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Stream;
 
 @Slf4j
 @Component
@@ -29,7 +28,7 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
-        return uri.startsWith("/internal/") || uri.startsWith("/actuator");
+        return uri.startsWith("/actuator");
     }
 
     @Override

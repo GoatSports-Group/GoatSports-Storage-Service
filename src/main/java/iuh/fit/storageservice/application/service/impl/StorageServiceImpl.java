@@ -6,6 +6,7 @@ import iuh.fit.storageservice.application.dto.response.file.DownloadResponseComm
 import iuh.fit.storageservice.application.dto.response.file.PresignedUrlResponse;
 import iuh.fit.storageservice.application.port.StoragePort;
 import iuh.fit.storageservice.application.service.StorageService;
+import iuh.fit.storageservice.application.service.UploadPolicy;
 
 import java.util.List;
 
@@ -19,6 +20,7 @@ public class StorageServiceImpl implements StorageService {
 
     @Override
     public List<PresignedUrlResponse> generatePresignedUrl(List<PresignedUrlRequest> requests, String userId) {
+        UploadPolicy.validate(requests);
         return storagePort.generatePresignedUrl(requests, userId);
     }
 
