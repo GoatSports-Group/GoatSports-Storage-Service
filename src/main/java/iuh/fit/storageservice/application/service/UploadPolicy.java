@@ -32,8 +32,10 @@ public final class UploadPolicy {
 
     private static final Map<String, FolderRule> FOLDERS = Map.of(
             "avatars", new FolderRule(IMAGE_TYPES, 2 * MB),
-            "venues", new FolderRule(union(IMAGE_TYPES, DOCUMENT_TYPES), 10 * MB),
-            "social-posts", new FolderRule(union(IMAGE_TYPES, VIDEO_TYPES), 100 * MB)
+            "venues", new FolderRule(union(IMAGE_TYPES, DOCUMENT_TYPES), 2 * MB),
+            "social-posts", new FolderRule(union(IMAGE_TYPES, VIDEO_TYPES), 10 * MB),
+            "clubs/logos", new FolderRule(union(IMAGE_TYPES, DOCUMENT_TYPES), 2 * MB),
+            "clubs/banners", new FolderRule(union(IMAGE_TYPES, DOCUMENT_TYPES), 2 * MB)
     );
 
     private static final int MAX_FILE_NAME_LENGTH = 200;

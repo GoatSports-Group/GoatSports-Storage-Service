@@ -186,7 +186,8 @@ public class StorageAdapter implements StoragePort {
     }
 
     private boolean isPublic(String key) {
-        return key.contains("venues/") || key.contains("avatars/");
+        return key.contains("venues/") || key.contains("avatars/")
+                ||  key.contains("clubs/") ||  key.contains("social-posts/");
     }
 
     private String validatedTemporaryObjectKey(String tempKey) {
