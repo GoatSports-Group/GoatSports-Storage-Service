@@ -60,7 +60,7 @@ class UploadPolicyTest {
     @Test
     @DisplayName("video chỉ được phép ở thư mục bài đăng, không được ở avatars")
     void videoAllowedOnlyInPostFolder() {
-        assertThatCode(() -> UploadPolicy.validate(one("clip.mp4", "video/mp4", "social-posts", 20 * MB)))
+        assertThatCode(() -> UploadPolicy.validate(one("clip.mp4", "video/mp4", "social-posts", 10 * MB)))
                 .doesNotThrowAnyException();
         assertThatThrownBy(() -> UploadPolicy.validate(one("clip.mp4", "video/mp4", "avatars", 20 * MB)))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -93,10 +93,25 @@ class UploadPolicyTest {
     }
 
     @Test
+    @DisplayName("club gallery accepts images up to 5MB and rejects larger files")
+    void clubGalleryEnforcesImageLimit() {
+        assertThatCode(() -> UploadPolicy.validate(
+                one("match-day.webp", "image/webp", "clubs/gallery", 5 * MB)))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> UploadPolicy.validate(
+                one("match-day.webp", "image/webp", "clubs/gallery", 5 * MB + 1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("5MB");
+        assertThatThrownBy(() -> UploadPolicy.validate(
+                one("highlight.mp4", "video/mp4", "clubs/gallery", MB)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     @DisplayName("PDF được phép ở thư mục venues cho hồ sơ chủ sân")
     void pdfAllowedForVenueDocuments() {
         assertThatCode(() -> UploadPolicy.validate(
-                one("giay-phep.pdf", "application/pdf", "venues", 3 * MB)))
+                one("giay-phep.pdf", "application/pdf", "venues", 2 * MB)))
                 .doesNotThrowAnyException();
     }
 }

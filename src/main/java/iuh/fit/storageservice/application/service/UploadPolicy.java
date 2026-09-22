@@ -35,7 +35,8 @@ public final class UploadPolicy {
             "venues", new FolderRule(union(IMAGE_TYPES, DOCUMENT_TYPES), 2 * MB),
             "social-posts", new FolderRule(union(IMAGE_TYPES, VIDEO_TYPES), 10 * MB),
             "clubs/logos", new FolderRule(union(IMAGE_TYPES, DOCUMENT_TYPES), 2 * MB),
-            "clubs/banners", new FolderRule(union(IMAGE_TYPES, DOCUMENT_TYPES), 2 * MB)
+            "clubs/banners", new FolderRule(union(IMAGE_TYPES, DOCUMENT_TYPES), 2 * MB),
+            "clubs/gallery", new FolderRule(IMAGE_TYPES, 5 * MB)
     );
 
     private static final int MAX_FILE_NAME_LENGTH = 200;
