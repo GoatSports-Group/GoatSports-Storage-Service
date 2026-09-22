@@ -155,6 +155,23 @@ public class StorageAdapter implements StoragePort {
     }
 
     @Override
+    public void deleteByUrl(String publicUrl) {
+        String domain = publicDomain == null ? "" : publicDomain.replaceAll("/+$", "");
+        String value = publicUrl == null ? "" : publicUrl.trim();
+        String prefix = domain + "/";
+        if (domain.isBlank() || !value.startsWith(prefix)) {
+            throw new IllegalArgumentException("File URL does not belong to the configured public storage domain");
+        }
+        String key = value.substring(prefix.length());
+        int queryIndex = key.indexOf('?');
+        if (queryIndex >= 0) key = key.substring(0, queryIndex);
+        if (key.isBlank() || key.contains("..") || key.startsWith("temp/") || !isPublic(key)) {
+            throw new IllegalArgumentException("Invalid public storage URL");
+        }
+        delete(key);
+    }
+
+    @Override
     public String getFileUrl(String key) {
         if (isPublic(key)) {
             return generatePublicUrl(key);

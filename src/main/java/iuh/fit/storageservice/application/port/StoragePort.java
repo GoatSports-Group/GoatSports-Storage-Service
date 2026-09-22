@@ -18,5 +18,7 @@ public interface StoragePort {
 
     void delete(String key);
 
+    void deleteByUrl(String publicUrl);
+
     String getFileUrl(String key);
 }

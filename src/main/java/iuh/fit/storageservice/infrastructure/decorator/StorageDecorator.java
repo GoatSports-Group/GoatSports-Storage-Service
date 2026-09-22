@@ -42,6 +42,11 @@ public class StorageDecorator implements StorageService {
     }
 
     @Override
+    public void deleteByUrl(String publicUrl) {
+        storageServiceImpl.deleteByUrl(publicUrl);
+    }
+
+    @Override
     public String getFileUrl(String key) {
         return storageServiceImpl.getFileUrl(key);
     }

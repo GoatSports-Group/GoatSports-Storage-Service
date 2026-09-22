@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -13,6 +14,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.util.List;
@@ -50,6 +52,7 @@ class StorageAdapterTest {
                 kafkaTemplate
         );
         ReflectionTestUtils.setField(storageAdapter, "bucketName", "goat-sports-bucket");
+        ReflectionTestUtils.setField(storageAdapter, "publicDomain", "https://cdn.goatsports.test");
     }
 
     @Test
@@ -86,5 +89,23 @@ class StorageAdapterTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid temporary object key");
         verify(s3AsyncClient, never()).headObject(any(HeadObjectRequest.class));
+    }
+
+    @Test
+    void deleteByUrlRemovesValidatedPublicClubObject() {
+        storageAdapter.deleteByUrl("https://cdn.goatsports.test/clubs/gallery/photo.webp?version=2");
+
+        ArgumentCaptor<DeleteObjectRequest> captor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3Client).deleteObject(captor.capture());
+        assertThat(captor.getValue().bucket()).isEqualTo("goat-sports-bucket");
+        assertThat(captor.getValue().key()).isEqualTo("clubs/gallery/photo.webp");
+    }
+
+    @Test
+    void deleteByUrlRejectsForeignStorageDomain() {
+        assertThatThrownBy(() -> storageAdapter.deleteByUrl("https://evil.example/clubs/gallery/photo.webp"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("configured public storage domain");
+        verify(s3Client, never()).deleteObject(any(DeleteObjectRequest.class));
     }
 }

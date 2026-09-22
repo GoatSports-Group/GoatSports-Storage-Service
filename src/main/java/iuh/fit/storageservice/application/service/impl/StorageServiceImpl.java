@@ -45,6 +45,11 @@ public class StorageServiceImpl implements StorageService {
     }
 
     @Override
+    public void deleteByUrl(String publicUrl) {
+        storagePort.deleteByUrl(publicUrl);
+    }
+
+    @Override
     public String getFileUrl(String key) {
         return storagePort.getFileUrl(key);
     }

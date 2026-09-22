@@ -48,6 +48,13 @@ public class StorageInternalController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/by-url")
+    @AuditLog(action = "DELETE_FILE_BY_URL", description = "Xóa tài liệu bằng URL công khai đã xác thực")
+    public ResponseEntity<Void> deleteFileByUrl(@RequestParam String url) {
+        storageService.deleteByUrl(url);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping
     public ResponseEntity<String> getFileUrl(@RequestParam("key") String key) throws ServiceException {
         if(key == null || key.isEmpty()) {
