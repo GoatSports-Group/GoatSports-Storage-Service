@@ -36,7 +36,9 @@ public final class UploadPolicy {
             "social-posts", new FolderRule(union(IMAGE_TYPES, VIDEO_TYPES), 10 * MB),
             "clubs/logos", new FolderRule(union(IMAGE_TYPES, DOCUMENT_TYPES), 2 * MB),
             "clubs/banners", new FolderRule(union(IMAGE_TYPES, DOCUMENT_TYPES), 2 * MB),
-            "clubs/gallery", new FolderRule(IMAGE_TYPES, 5 * MB)
+            "clubs/gallery", new FolderRule(IMAGE_TYPES, 5 * MB),
+            // Anh gui trong tin nhan (ca anh chup tu camera). Rieng tu: khong nam trong danh sach public.
+            "chat-messages", new FolderRule(IMAGE_TYPES, 10 * MB)
     );
 
     private static final int MAX_FILE_NAME_LENGTH = 200;

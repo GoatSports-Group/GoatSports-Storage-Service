@@ -114,4 +114,17 @@ class UploadPolicyTest {
                 one("giay-phep.pdf", "application/pdf", "venues", 2 * MB)))
                 .doesNotThrowAnyException();
     }
+
+    @Test
+    void chatMessagesAcceptImagesUpToTenMegabytes() {
+        assertThatCode(() -> UploadPolicy.validate(List.of(
+                new PresignedUrlRequest("camera.jpg", "image/jpeg", "chat-messages", 9L * 1024 * 1024))))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> UploadPolicy.validate(List.of(
+                new PresignedUrlRequest("clip.mp4", "video/mp4", "chat-messages", 1024L))))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> UploadPolicy.validate(List.of(
+                new PresignedUrlRequest("big.jpg", "image/jpeg", "chat-messages", 11L * 1024 * 1024))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }
