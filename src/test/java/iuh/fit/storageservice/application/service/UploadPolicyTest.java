@@ -127,4 +127,21 @@ class UploadPolicyTest {
                 new PresignedUrlRequest("big.jpg", "image/jpeg", "chat-messages", 11L * 1024 * 1024))))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    @DisplayName("hồ sơ chủ sân: ảnh CCCD vào identities, giấy phép PDF vào licenses, tối đa 2 MB")
+    void ownerApplicationFoldersAcceptOnlyTheirDocumentTypes() {
+        assertThatCode(() -> UploadPolicy.validate(List.of(
+                new PresignedUrlRequest("front.png", "image/png", "identities", 2 * MB),
+                new PresignedUrlRequest("back.webp", "image/webp", "identities", MB),
+                new PresignedUrlRequest("license.pdf", "application/pdf", "licenses", 2 * MB))))
+                .doesNotThrowAnyException();
+
+        assertThatThrownBy(() -> UploadPolicy.validate(one("id.pdf", "application/pdf", "identities", MB)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Định dạng");
+        assertThatThrownBy(() -> UploadPolicy.validate(one("license.png", "image/png", "licenses", MB)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Định dạng");
+        assertThatThrownBy(() -> UploadPolicy.validate(one("front.png", "image/png", "identities", 2 * MB + 1)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("2MB");
+    }
 }
