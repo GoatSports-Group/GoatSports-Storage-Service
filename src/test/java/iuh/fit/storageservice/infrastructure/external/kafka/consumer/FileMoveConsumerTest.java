@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -99,7 +100,7 @@ class FileMoveConsumerTest {
             }
             throw notFound();
         });
-        Copy copy = org.mockito.Mockito.mock(Copy.class);
+        Copy copy = Mockito.mock(Copy.class);
         CompletableFuture<CompletedCopy> failedCopy = CompletableFuture.failedFuture(notFound());
         when(copy.completionFuture()).thenReturn(failedCopy);
         when(transferManager.copy(any(CopyRequest.class))).thenReturn(copy);

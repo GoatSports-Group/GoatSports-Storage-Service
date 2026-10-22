@@ -4,6 +4,7 @@ import iuh.fit.storageservice.application.dto.request.file.PresignedUrlRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -78,7 +79,7 @@ class UploadPolicyTest {
     @Test
     @DisplayName("xin quá 10 đường dẫn một lần bị từ chối")
     void oversizedBatchRejected() {
-        List<PresignedUrlRequest> many = java.util.Collections.nCopies(11,
+        List<PresignedUrlRequest> many = Collections.nCopies(11,
                 new PresignedUrlRequest("a.png", "image/png", "avatars", 1024L));
         assertThatThrownBy(() -> UploadPolicy.validate(many))
                 .isInstanceOf(IllegalArgumentException.class)

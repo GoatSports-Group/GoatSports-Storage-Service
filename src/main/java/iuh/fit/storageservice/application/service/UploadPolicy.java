@@ -5,6 +5,8 @@ import iuh.fit.storageservice.application.dto.request.file.PresignedUrlRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Kiểm tra yêu cầu xin pre-signed URL trước khi ký.
@@ -107,7 +109,7 @@ public final class UploadPolicy {
     }
 
     private static Set<String> union(Set<String> left, Set<String> right) {
-        return java.util.stream.Stream.concat(left.stream(), right.stream())
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        return Stream.concat(left.stream(), right.stream())
+                .collect(Collectors.toUnmodifiableSet());
     }
 }
