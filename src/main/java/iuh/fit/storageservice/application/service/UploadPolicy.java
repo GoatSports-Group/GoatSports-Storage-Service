@@ -49,6 +49,11 @@ public final class UploadPolicy {
 
     private UploadPolicy() {}
 
+    /** Các thư mục được phép tải lên; FileAccessPolicy dùng để tách chủ tệp khỏi key. */
+    static Set<String> folders() {
+        return FOLDERS.keySet();
+    }
+
     public static void validate(List<PresignedUrlRequest> requests) {
         if (requests == null || requests.isEmpty()) {
             throw new IllegalArgumentException("Danh sách tệp tải lên không được rỗng.");

@@ -6,6 +6,7 @@ import iuh.fit.storageservice.application.dto.response.file.DownloadResponseComm
 import iuh.fit.storageservice.application.dto.response.file.PresignedUrlResponse;
 import iuh.fit.storageservice.application.exception.ServiceException;
 import iuh.fit.storageservice.application.service.StorageService;
+import iuh.fit.storageservice.infrastructure.security.SecurityContextHelper;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class StorageController {
     private final StorageService storageService;
+    private final SecurityContextHelper securityContextHelper;
 
     @GetMapping("/download")
     @AuditLog(action = "DOWNLOAD_FILE", description = "Tải tài liệu #{#key}")
@@ -28,7 +30,7 @@ public class StorageController {
             throw new ServiceException("Đường dẫn không được để trống");
         }
 
-        DownloadResponseCommand response = storageService.download(key);
+        DownloadResponseCommand response = storageService.download(key, securityContextHelper.currentRequester());
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
@@ -42,7 +44,7 @@ public class StorageController {
         if(key == null || key.isEmpty()) {
             throw new ServiceException("Đường dẫn không được để trống");
         }
-        storageService.delete(key);
+        storageService.delete(key, securityContextHelper.currentRequester());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
@@ -52,7 +54,7 @@ public class StorageController {
             throw new ServiceException("Đường dẫn không được để trống");
         }
 
-        String response = storageService.getFileUrl(key);
+        String response = storageService.getFileUrl(key, securityContextHelper.currentRequester());
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
